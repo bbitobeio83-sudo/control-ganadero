@@ -46,10 +46,10 @@ android.permissions = INTERNET
 android.api    = 33
 android.minapi = 26
 android.ndk    = 25b
-android.arch   = arm64-v8a
+android.archs  = arm64-v8a
 
 # Bootstrap WebView: crea una Activity con WebView que carga localhost:5000
-android.bootstrap = webview
+p4a.bootstrap = webview
 
 # Permite HTTP en 127.0.0.1 (Android 9+ bloquea HTTP por defecto)
 android.add_manifest_application_attributes = android:networkSecurityConfig="@xml/network_security_config" android:usesCleartextTraffic="true"
