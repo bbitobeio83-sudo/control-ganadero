@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-bar-chart-line me-2"></i>Reportes y Estadísticas</h4>
+  <div class="btn-group">
+    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+      <i class="bi bi-download me-1"></i>Exportar Reporte General
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li>
+        <a class="dropdown-item" href="{{ url_for('export_reporte', fmt='pdf') }}">
+          <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF — Reporte Completo
+        </a>
+      </li>
+      <li>
+        <a class="dropdown-item" href="{{ url_for('export_reporte', fmt='xlsx') }}">
+          <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel — Todas las secciones
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Inventario por Raza -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Inventario por Raza y Sexo</h6>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>Raza</th><th>Sexo</th><th>Cantidad</th></tr></thead>
+          <tbody>
+          {% for r in inventario_raza %}
+            <tr>
+              <td>{{ r['raza'] }}</td>
+              <td>{{ r['sexo']|title }}</td>
+              <td><span class="badge bg-success">{{ r['cantidad'] }}</span></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="text-center text-muted">Sin datos</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Balance mensual -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Balance Mensual (12 meses)</h6>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="chartBalance"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Producción leche mensual -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-droplet me-2"></i>Producción de Leche Mensual</h6>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:240px">
+          <canvas id="chartLeche"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Partos por mes -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Partos por Mes</h6>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:240px">
+          <canvas id="chartPartos"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top productoras -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-trophy me-2"></i>Top 10 Productoras — Últimos 30 días</h6>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr><th>#</th><th>Arete</th><th>Nombre</th><th>Raza</th><th>Total Litros</th><th>Promedio Día</th><th>Días Ordeñada</th></tr>
+          </thead>
+          <tbody>
+          {% for v in top_productoras %}
+            <tr>
+              <td>
+                <span class="badge {% if loop.index == 1 %}bg-warning text-dark{% elif loop.index == 2 %}bg-secondary{% elif loop.index == 3 %}bg-danger{% else %}bg-light text-dark{% endif %}">
+                  {{ loop.index }}
+                </span>
+              </td>
+              <td><code>{{ v['arete'] }}</code></td>
+              <td>{{ v['nombre'] or '—' }}</td>
+              <td>{{ v['raza'] }}</td>
+              <td><strong>{{ "%.1f"|format(v['total_litros']) }} L</strong></td>
+              <td>{{ "%.1f"|format(v['promedio_dia']) }} L/día</td>
+              <td>{{ v['dias_ordenada'] }} días</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-3">Sin datos de producción.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Balance mensual
+const balMeses   = {{ balance_mensual | map(attribute='mes') | list | reverse | list | tojson }};
+const balIng     = {{ balance_mensual | map(attribute='ingresos') | list | reverse | list | tojson }};
+const balGas     = {{ balance_mensual | map(attribute='gastos') | list | reverse | list | tojson }};
+
+new Chart(document.getElementById('chartBalance'), {
+  type: 'bar',
+  data: {
+    labels: balMeses,
+    datasets: [
+      { label: 'Ingresos', data: balIng, backgroundColor: 'rgba(76,175,80,.8)', borderRadius: 4 },
+      { label: 'Gastos',   data: balGas, backgroundColor: 'rgba(244,67,54,.8)', borderRadius: 4 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom' } },
+    scales: { y: { ticks: { callback: v => '$' + v } } }
+  }
+});
+
+// Leche mensual
+const lecheMeses   = {{ leche_mensual | map(attribute='mes') | list | reverse | list | tojson }};
+const lecheLitros  = {{ leche_mensual | map(attribute='litros') | list | reverse | list | tojson }};
+
+new Chart(document.getElementById('chartLeche'), {
+  type: 'line',
+  data: {
+    labels: lecheMeses,
+    datasets: [{
+      label: 'Litros',
+      data: lecheLitros,
+      borderColor: '#1565c0',
+      backgroundColor: 'rgba(21,101,192,.1)',
+      fill: true, tension: .4, pointRadius: 4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { ticks: { callback: v => v + ' L' } } }
+  }
+});
+
+// Partos
+const partosMeses  = {{ partos_anno | map(attribute='mes') | list | tojson }};
+const partosNum    = {{ partos_anno | map(attribute='partos') | list | tojson }};
+
+new Chart(document.getElementById('chartPartos'), {
+  type: 'bar',
+  data: {
+    labels: partosMeses,
+    datasets: [{
+      label: 'Partos',
+      data: partosNum,
+      backgroundColor: 'rgba(171,71,188,.7)',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+</script>
+{% endblock %}

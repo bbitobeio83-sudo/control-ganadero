@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+{% block title %}{{ animal['arete'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4>
+    <a href="{{ url_for('animales') }}" class="btn btn-sm btn-outline-secondary me-2">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <code class="fs-5">{{ animal['arete'] }}</code>
+    {% if animal['nombre'] %}<span class="text-muted ms-2 fw-normal">{{ animal['nombre'] }}</span>{% endif %}
+  </h4>
+  <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalEditar">
+    <i class="bi bi-pencil me-1"></i>Editar
+  </button>
+</div>
+
+<!-- Info general -->
+<div class="row g-3 mb-4">
+  <!-- Foto del animal -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex flex-column p-3">
+        <div class="animal-foto-wrap mb-3 flex-grow-1">
+          {% if animal['foto'] %}
+            <img src="{{ url_for('static', filename='uploads/' + animal['foto']) }}"
+                 alt="Foto de {{ animal['arete'] }}" id="fotoPreview">
+          {% else %}
+            <div class="animal-foto-placeholder w-100">
+              <i class="bi bi-cow d-block"></i>
+              <p class="text-muted small mt-2 mb-0">Sin foto</p>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Subir foto -->
+        <form method="post"
+              action="{{ url_for('subir_foto_animal', animal_id=animal['id']) }}"
+              enctype="multipart/form-data" id="formFoto">
+          <label class="upload-drop-zone w-100 mb-2" for="inputFoto">
+            <i class="bi bi-cloud-upload fs-4 text-success d-block mb-1"></i>
+            <span class="small text-muted">Clic o arrastra una foto<br>JPG, PNG, WEBP — máx. 8 MB</span>
+            <input type="file" name="foto" id="inputFoto" accept="image/*"
+                   class="d-none" onchange="previewFoto(this)">
+          </label>
+          <button type="submit" class="btn btn-success btn-sm w-100" id="btnSubirFoto" disabled>
+            <i class="bi bi-upload me-1"></i>Subir foto
+          </button>
+        </form>
+
+        {% if animal['foto'] %}
+        <form method="post"
+              action="{{ url_for('eliminar_foto_animal', animal_id=animal['id']) }}"
+              class="mt-2"
+              onsubmit="return confirm('¿Eliminar la foto de este animal?')">
+          <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+            <i class="bi bi-trash me-1"></i>Eliminar foto
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-9 d-flex flex-column gap-3">
+  <div class="row g-3">
+  <div class="col-md-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-3 text-uppercase small">Información General</h6>
+        <dl class="row mb-0 small">
+          <dt class="col-5">Arete</dt><dd class="col-7"><code>{{ animal['arete'] }}</code></dd>
+          <dt class="col-5">Raza</dt><dd class="col-7">{{ animal['raza'] }}</dd>
+          <dt class="col-5">Sexo</dt><dd class="col-7">{{ animal['sexo']|title }}</dd>
+          <dt class="col-5">F. Nacimiento</dt><dd class="col-7">{{ animal['fecha_nacimiento'] or '—' }}</dd>
+          <dt class="col-5">F. Ingreso</dt><dd class="col-7">{{ animal['fecha_ingreso'] or '—' }}</dd>
+          <dt class="col-5">Madre</dt><dd class="col-7">
+            {% if madre %}
+              <a href="#"><code>{{ madre['arete'] }}</code>{% if madre['nombre'] %} — {{ madre['nombre'] }}{% endif %}</a>
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-5">Padre</dt><dd class="col-7">{{ animal['padre_arete'] or '—' }}</dd>
+          <dt class="col-5">Propósito</dt><dd class="col-7">{{ animal['proposito']|replace('_',' ')|title }}</dd>
+          <dt class="col-5">Estado</dt><dd class="col-7">
+            <span class="badge badge-{{ animal['estado'] }}">{{ animal['estado']|title }}</span>
+          </dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center">
+        <div class="display-4 fw-bold text-success">
+          {{ "%.1f"|format(animal['peso_actual']) if animal['peso_actual'] else '—' }}
+        </div>
+        <div class="text-muted">kg — Peso actual</div>
+      </div>
+    </div>
+    {% if animal['observaciones'] %}
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-body">
+        <h6 class="text-muted small text-uppercase">Observaciones</h6>
+        <p class="mb-0 small">{{ animal['observaciones'] }}</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div><!-- /.row inner -->
+</div><!-- /.col-md-9 -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-2 small text-uppercase">Últimos Pesos</h6>
+        {% if historial_pesos %}
+        <div class="chart-container" style="height:120px">
+          <canvas id="chartPesos"></canvas>
+        </div>
+        <table class="table table-sm mt-2 mb-0">
+          <thead><tr><th>Fecha</th><th>Peso</th></tr></thead>
+          <tbody>
+          {% for p in historial_pesos[:4] %}
+            <tr><td>{{ p['fecha'] }}</td><td>{{ p['peso'] }} kg</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted small">Sin registros de peso.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs historial -->
+<ul class="nav nav-tabs mb-3" id="histTabs">
+  <li class="nav-item">
+    <a class="nav-link active" data-bs-toggle="tab" href="#tabSalud">
+      <i class="bi bi-heart-pulse me-1"></i>Sanidad ({{ historial_salud|length }})
+    </a>
+  </li>
+  {% if animal['sexo'] == 'hembra' %}
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tabRepro">
+      <i class="bi bi-diagram-2 me-1"></i>Reproducción ({{ historial_repro|length }})
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tabLeche">
+      <i class="bi bi-droplet me-1"></i>Leche ({{ historial_leche|length }})
+    </a>
+  </li>
+  {% endif %}
+</ul>
+
+<div class="tab-content">
+  <!-- Sanidad -->
+  <div class="tab-pane fade show active" id="tabSalud">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-0">
+        {% if historial_salud %}
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Medicamento</th><th>Costo</th><th>Próxima cita</th></tr></thead>
+          <tbody>
+          {% for s in historial_salud %}
+            <tr>
+              <td>{{ s['fecha'] }}</td>
+              <td><span class="badge bg-info text-dark">{{ s['tipo'] }}</span></td>
+              <td>{{ s['descripcion'] or '—' }}</td>
+              <td>{{ s['medicamento'] or '—' }}</td>
+              <td>${{ "%.2f"|format(s['costo']) }}</td>
+              <td>{{ s['proxima_cita'] or '—' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4">Sin registros sanitarios.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Reproducción -->
+  {% if animal['sexo'] == 'hembra' %}
+  <div class="tab-pane fade" id="tabRepro">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-0">
+        {% if historial_repro %}
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>F. Servicio</th><th>Tipo</th><th>Toro</th><th>Parto Esperado</th><th>Parto Real</th><th>Crías</th><th>Estado</th></tr></thead>
+          <tbody>
+          {% for r in historial_repro %}
+            <tr>
+              <td>{{ r['fecha_servicio'] }}</td>
+              <td>{{ r['tipo_servicio']|replace('_',' ')|title }}</td>
+              <td>{{ r['toro_arete'] or '—' }}</td>
+              <td>{{ r['fecha_parto_esperado'] or '—' }}</td>
+              <td>{{ r['fecha_parto_real'] or '—' }}</td>
+              <td>{{ r['num_crias'] }}</td>
+              <td><span class="badge badge-{{ r['estado'] }}">{{ r['estado']|title }}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4">Sin registros reproductivos.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Leche -->
+  <div class="tab-pane fade" id="tabLeche">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-0">
+        {% if historial_leche %}
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>Fecha</th><th>Mañana (L)</th><th>Tarde (L)</th><th>Total (L)</th></tr></thead>
+          <tbody>
+          {% for l in historial_leche %}
+            <tr>
+              <td>{{ l['fecha'] }}</td>
+              <td>{{ l['manana'] }}</td>
+              <td>{{ l['tarde'] }}</td>
+              <td><strong>{{ l['total'] }}</strong></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4">Sin registros de producción.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Modal Editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Editar Animal — <code class="text-white">{{ animal['arete'] }}</code></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('editar_animal', animal_id=animal['id']) }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Nombre</label>
+              <input type="text" name="nombre" class="form-control" value="{{ animal['nombre'] or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Raza *</label>
+              <select name="raza" class="form-select" required>
+                {% for r in ['Holstein','Simmental','Angus','Hereford','Charolais','Brahman','Cebú','Suizo Pardo','Limousin','Criollo','Jersey','Cruza','Otra'] %}
+                  <option {% if animal['raza']==r %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Sexo *</label>
+              <select name="sexo" class="form-select" required>
+                <option value="hembra" {% if animal['sexo']=='hembra' %}selected{% endif %}>Hembra</option>
+                <option value="macho" {% if animal['sexo']=='macho' %}selected{% endif %}>Macho</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">F. Nacimiento</label>
+              <input type="date" name="fecha_nacimiento" class="form-control" value="{{ animal['fecha_nacimiento'] or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Peso (kg)</label>
+              <input type="number" step="0.1" name="peso_actual" class="form-control" value="{{ animal['peso_actual'] or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Padre (Arete)</label>
+              <input type="text" name="padre_arete" class="form-control" value="{{ animal['padre_arete'] or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Propósito</label>
+              <select name="proposito" class="form-select">
+                {% for p,l in [('doble_proposito','Doble Propósito'),('leche','Leche'),('carne','Carne'),('cria','Cría'),('reproduccion','Reproducción')] %}
+                  <option value="{{ p }}" {% if animal['proposito']==p %}selected{% endif %}>{{ l }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Estado</label>
+              <select name="estado" class="form-select">
+                <option value="activo" {% if animal['estado']=='activo' %}selected{% endif %}>Activo</option>
+                <option value="vendido" {% if animal['estado']=='vendido' %}selected{% endif %}>Vendido</option>
+                <option value="muerto" {% if animal['estado']=='muerto' %}selected{% endif %}>Baja</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Madre</label>
+              <input type="number" name="madre_id" class="form-control" value="{{ animal['madre_id'] or '' }}" placeholder="ID de la madre">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Observaciones</label>
+              <textarea name="observaciones" class="form-control" rows="2">{{ animal['observaciones'] or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <form method="post" action="{{ url_for('eliminar_animal', animal_id=animal['id']) }}" class="me-auto"
+                onsubmit="return confirm('¿Marcar este animal como retirado?')">
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+              <i class="bi bi-archive me-1"></i>Retirar Animal
+            </button>
+          </form>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Vista previa de foto antes de subir
+function previewFoto(input) {
+  const btn = document.getElementById('btnSubirFoto');
+  if (!input.files || !input.files[0]) { btn.disabled = true; return; }
+  btn.disabled = false;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wrap = document.querySelector('.animal-foto-wrap');
+    const img = document.getElementById('fotoPreview');
+    if (img) {
+      img.src = e.target.result;
+    } else {
+      wrap.innerHTML = `<img src="${e.target.result}" style="width:100%;max-height:280px;object-fit:cover;border-radius:12px">`;
+    }
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
+{% if historial_pesos %}
+<script>
+const pesosLabels = {{ historial_pesos | map(attribute='fecha') | list | reverse | list | tojson }};
+const pesosData   = {{ historial_pesos | map(attribute='peso') | list | reverse | list | tojson }};
+new Chart(document.getElementById('chartPesos'), {
+  type: 'line',
+  data: {
+    labels: pesosLabels,
+    datasets: [{ label: 'Peso kg', data: pesosData, borderColor:'#2e7d32',
+      backgroundColor:'rgba(46,125,50,.1)', fill:true, tension:.4, pointRadius:3 }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false} },
+    scales:{ y:{ beginAtZero:false } }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

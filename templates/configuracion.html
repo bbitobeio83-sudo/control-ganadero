@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% block title %}Configuración{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-gear me-2"></i>Configuración de la Hacienda</h4>
+</div>
+
+<div class="row g-4">
+
+  <!-- Formulario -->
+  <div class="col-lg-7">
+    <div class="form-section">
+      <h5 class="mb-4 fw-bold text-success">
+        <i class="bi bi-building me-2"></i>Datos de la Hacienda / Rancho
+      </h5>
+      <form method="post" action="{{ url_for('guardar_configuracion') }}">
+        <div class="row g-3">
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">
+              Nombre de la Hacienda / Rancho *
+            </label>
+            <input type="text" name="nombre_hacienda" class="form-control form-control-lg"
+                   placeholder="Ej: Hacienda La Esperanza, Rancho El Roble..."
+                   value="{{ cfg.get('nombre_hacienda', '') }}" required maxlength="80">
+            <div class="form-text">Este nombre aparecerá en el menú lateral, el dashboard y en todos los reportes exportados.</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Propietario / Responsable</label>
+            <input type="text" name="propietario" class="form-control"
+                   placeholder="Nombre del dueño o administrador"
+                   value="{{ cfg.get('propietario', '') }}" maxlength="80">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Teléfono</label>
+            <input type="tel" name="telefono" class="form-control"
+                   placeholder="Ej: +52 555 123 4567"
+                   value="{{ cfg.get('telefono', '') }}" maxlength="30">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Ubicación / Dirección</label>
+            <input type="text" name="ubicacion" class="form-control"
+                   placeholder="Municipio, Estado, País"
+                   value="{{ cfg.get('ubicacion', '') }}" maxlength="120">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Correo Electrónico</label>
+            <input type="email" name="email" class="form-control"
+                   placeholder="correo@ejemplo.com"
+                   value="{{ cfg.get('email', '') }}" maxlength="80">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Descripción / Eslogan</label>
+            <input type="text" name="descripcion" class="form-control"
+                   placeholder="Ej: Ganadería de alto rendimiento"
+                   value="{{ cfg.get('descripcion', '') }}" maxlength="120">
+          </div>
+
+          <div class="col-12 mt-2">
+            <button type="submit" class="btn btn-success px-4">
+              <i class="bi bi-check-lg me-2"></i>Guardar Configuración
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Logo + Vista previa -->
+  <div class="col-lg-5 d-flex flex-column gap-4">
+
+    <!-- Logo de la hacienda -->
+    <div class="form-section">
+      <h5 class="mb-3 fw-bold text-success">
+        <i class="bi bi-image me-2"></i>Logo de la Hacienda
+      </h5>
+
+      {% if cfg.get('logo_archivo') %}
+      <div class="text-center mb-3">
+        <img src="{{ url_for('static', filename='uploads/' + cfg.get('logo_archivo')) }}"
+             alt="Logo actual" class="logo-preview" id="logoPreview">
+        <div class="text-muted small mt-1">Logo actual</div>
+      </div>
+      {% else %}
+      <div class="text-center mb-3">
+        <div class="upload-drop-zone" style="max-width:200px;margin:auto" id="logoDropZone">
+          <i class="bi bi-image fs-2 text-muted d-block mb-1"></i>
+          <span class="small text-muted">Sin logo</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <form method="post"
+            action="{{ url_for('subir_logo') }}"
+            enctype="multipart/form-data">
+        <label class="upload-drop-zone w-100 mb-2" for="inputLogo">
+          <i class="bi bi-cloud-upload fs-3 text-success d-block mb-1"></i>
+          <span class="small text-muted">
+            Clic o arrastra el logo<br>JPG, PNG, WEBP — máx. 8 MB
+          </span>
+          <input type="file" name="logo" id="inputLogo" accept="image/*"
+                 class="d-none" onchange="previewLogo(this)">
+        </label>
+        <button type="submit" class="btn btn-success btn-sm w-100"
+                id="btnSubirLogo" {% if not cfg.get('logo_archivo') %}disabled{% endif %}>
+          <i class="bi bi-upload me-1"></i>Subir logo
+        </button>
+      </form>
+
+      {% if cfg.get('logo_archivo') %}
+      <form method="post" action="{{ url_for('eliminar_logo') }}"
+            class="mt-2" onsubmit="return confirm('¿Eliminar el logo?')">
+        <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+          <i class="bi bi-trash me-1"></i>Eliminar logo
+        </button>
+      </form>
+      {% endif %}
+    </div>
+
+    <!-- Vista previa del nombre -->
+    <div class="form-section">
+      <h5 class="mb-3 fw-bold"><i class="bi bi-eye me-2"></i>Vista Previa</h5>
+
+      <!-- Simulación del sidebar -->
+      <div class="rounded-3 p-3 mb-4" style="background:#1a3a2a; color:white; max-width:260px">
+        <div class="d-flex align-items-center gap-2 border-bottom border-secondary pb-2 mb-2">
+          <i class="bi bi-cow fs-4"></i>
+          <div>
+            <div class="fw-bold lh-1 small" id="prev-nombre">
+              {{ cfg.get('nombre_hacienda', 'Mi Rancho') }}
+            </div>
+            <div class="text-white-50" style="font-size:.72rem">Control Ganadero Vacuno</div>
+          </div>
+        </div>
+        <div class="text-white-50 small ps-1">
+          <div class="py-1"><i class="bi bi-speedometer2 me-2"></i>Dashboard</div>
+          <div class="py-1"><i class="bi bi-grid-3x3-gap me-2"></i>Animales</div>
+          <div class="py-1 opacity-50">...</div>
+        </div>
+      </div>
+
+      <!-- Simulación del encabezado de reporte -->
+      <div class="border rounded-3 p-3" style="font-family:serif">
+        <div class="fw-bold text-success fs-5" id="prev-nombre-rep">
+          {{ cfg.get('nombre_hacienda', 'Mi Rancho')|upper }}
+        </div>
+        <div class="text-muted small" id="prev-sub">
+          {{ [cfg.get('propietario',''), cfg.get('ubicacion','')] | select | join(' | ') or ' ' }}
+        </div>
+        <div class="fw-bold mt-1">Inventario de Animales</div>
+        <div class="text-muted small">Total: 13 animal(es)</div>
+        <hr>
+        <div class="small text-muted">
+          Fecha de generación: <span id="fecha-prev"></span>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-3 small mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        El nombre y logo aparecerán en el menú lateral, dashboard y en todos los PDF exportados.
+      </div>
+    </div><!-- /.form-section vista previa -->
+
+  </div><!-- /.col-lg-5 -->
+
+</div><!-- /.row g-4 -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Vista previa nombre en tiempo real
+function actualizar() {
+  const nombre = document.querySelector('[name=nombre_hacienda]').value || 'Mi Rancho';
+  const prop   = document.querySelector('[name=propietario]').value;
+  const ubic   = document.querySelector('[name=ubicacion]').value;
+  document.getElementById('prev-nombre').textContent = nombre;
+  document.getElementById('prev-nombre-rep').textContent = nombre.toUpperCase();
+  const partes = [prop, ubic].filter(Boolean);
+  document.getElementById('prev-sub').textContent = partes.join(' | ') || ' ';
+}
+document.querySelectorAll('input[type=text],input[type=tel],input[type=email]')
+  .forEach(el => el.addEventListener('input', actualizar));
+
+// Fecha de hoy en la vista previa
+const hoy = new Date();
+document.getElementById('fecha-prev').textContent =
+  hoy.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'numeric'});
+
+// Vista previa del logo antes de subir
+function previewLogo(input) {
+  const btn = document.getElementById('btnSubirLogo');
+  if (!input.files || !input.files[0]) { btn.disabled = true; return; }
+  btn.disabled = false;
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Actualizar o crear la imagen de preview
+    let prev = document.getElementById('logoPreview');
+    if (!prev) {
+      const zona = document.getElementById('logoDropZone');
+      zona.innerHTML = '';
+      prev = document.createElement('img');
+      prev.id = 'logoPreview';
+      prev.className = 'logo-preview';
+      prev.alt = 'Vista previa';
+      zona.parentElement.insertBefore(prev, zona);
+      zona.style.display = 'none';
+    }
+    prev.src = e.target.result;
+    // También actualizar el sidebar de vista previa
+    const sideIcon = document.querySelector('.sidebar-brand img');
+    if (sideIcon) sideIcon.src = e.target.result;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
+{% endblock %}

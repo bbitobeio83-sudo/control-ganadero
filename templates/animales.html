@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% block title %}Animales{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-grid-3x3-gap me-2"></i>Inventario de Animales</h4>
+  <div class="d-flex gap-2">
+    <div class="btn-group">
+      <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-download me-1"></i>Exportar
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_animales', fmt='pdf', estado=filtro_estado) }}">
+            <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_animales', fmt='xlsx', estado=filtro_estado) }}">
+            <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (.xlsx)
+          </a>
+        </li>
+      </ul>
+    </div>
+    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo Animal
+    </button>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-4">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Buscar por arete o nombre..." value="{{ buscar }}">
+      </div>
+      <div class="col-sm-3">
+        <select name="estado" class="form-select form-select-sm">
+          <option value="activo" {% if filtro_estado=='activo' %}selected{% endif %}>Activos</option>
+          <option value="vendido" {% if filtro_estado=='vendido' %}selected{% endif %}>Vendidos</option>
+          <option value="muerto" {% if filtro_estado=='muerto' %}selected{% endif %}>Bajas</option>
+        </select>
+      </div>
+      <div class="col-sm-3">
+        <select name="sexo" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          <option value="hembra" {% if filtro_sexo=='hembra' %}selected{% endif %}>Hembras</option>
+          <option value="macho" {% if filtro_sexo=='macho' %}selected{% endif %}>Machos</option>
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <button type="submit" class="btn btn-sm btn-primary w-100">
+          <i class="bi bi-search me-1"></i>Filtrar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabla -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Arete</th>
+            <th>Nombre</th>
+            <th>Raza</th>
+            <th>Sexo</th>
+            <th>F. Nacimiento</th>
+            <th>Peso (kg)</th>
+            <th>Propósito</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in animales %}
+          <tr>
+            <td class="ps-2">
+              {% if a['foto'] %}
+                <img src="{{ url_for('static', filename='uploads/' + a['foto']) }}"
+                     alt="Foto" class="animal-thumb">
+              {% else %}
+                <div class="animal-thumb-placeholder">
+                  <i class="bi bi-cow"></i>
+                </div>
+              {% endif %}
+            </td>
+            <td><code class="fw-bold">{{ a['arete'] }}</code></td>
+            <td>{{ a['nombre'] or '—' }}</td>
+            <td>{{ a['raza'] }}</td>
+            <td>
+              {% if a['sexo'] == 'hembra' %}
+                <span class="badge bg-pink text-dark" style="background:#f8c8d4!important">
+                  <i class="bi bi-gender-female"></i> Hembra
+                </span>
+              {% else %}
+                <span class="badge" style="background:#c8d8f8;color:#003">
+                  <i class="bi bi-gender-male"></i> Macho
+                </span>
+              {% endif %}
+            </td>
+            <td>{{ a['fecha_nacimiento'] or '—' }}</td>
+            <td>{{ "%.1f"|format(a['peso_actual']) if a['peso_actual'] else '—' }}</td>
+            <td><span class="badge bg-secondary">{{ a['proposito']|replace('_',' ')|title }}</span></td>
+            <td>
+              <span class="badge badge-{{ a['estado'] }} px-2 py-1 rounded-pill">
+                {{ a['estado']|title }}
+              </span>
+            </td>
+            <td>
+              <a href="{{ url_for('detalle_animal', animal_id=a['id']) }}"
+                 class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">
+              No se encontraron animales con los filtros aplicados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="px-3 py-2 text-muted small border-top">
+      Total: <strong>{{ animales | length }}</strong> animal(es)
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Animal -->
+<div class="modal fade" id="modalNuevo" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Registrar Nuevo Animal</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('nuevo_animal') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Arete / Código *</label>
+              <input type="text" name="arete" class="form-control" required placeholder="Ej: 001, MX-456">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Nombre</label>
+              <input type="text" name="nombre" class="form-control" placeholder="Opcional">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Raza *</label>
+              <select name="raza" class="form-select" required>
+                <option value="">Seleccionar...</option>
+                <option>Holstein</option>
+                <option>Simmental</option>
+                <option>Angus</option>
+                <option>Hereford</option>
+                <option>Charolais</option>
+                <option>Brahman</option>
+                <option>Cebú</option>
+                <option>Suizo Pardo</option>
+                <option>Limousin</option>
+                <option>Criollo</option>
+                <option>Jersey</option>
+                <option>Cruza</option>
+                <option>Otra</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Sexo *</label>
+              <select name="sexo" class="form-select" required>
+                <option value="">Seleccionar...</option>
+                <option value="hembra">Hembra</option>
+                <option value="macho">Macho</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Fecha de Nacimiento</label>
+              <input type="date" name="fecha_nacimiento" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Fecha de Ingreso</label>
+              <input type="date" name="fecha_ingreso" class="form-control" value="{{ now }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Peso Actual (kg)</label>
+              <input type="number" step="0.1" name="peso_actual" class="form-control" placeholder="Ej: 350">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Madre (Arete)</label>
+              <select name="madre_id" class="form-select">
+                <option value="">Sin registro</option>
+                {% for m in madres %}
+                  <option value="{{ m['id'] }}">{{ m['arete'] }}{% if m['nombre'] %} — {{ m['nombre'] }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Padre (Arete)</label>
+              <input type="text" name="padre_arete" class="form-control" placeholder="Arete del toro">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Propósito</label>
+              <select name="proposito" class="form-select">
+                <option value="doble_proposito">Doble Propósito</option>
+                <option value="leche">Leche</option>
+                <option value="carne">Carne</option>
+                <option value="cria">Cría</option>
+                <option value="reproduccion">Reproducción</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Estado</label>
+              <select name="estado" class="form-select">
+                <option value="activo">Activo</option>
+                <option value="vendido">Vendido</option>
+                <option value="muerto">Baja / Muerto</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Observaciones</label>
+              <textarea name="observaciones" class="form-control" rows="2" placeholder="Notas adicionales..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Guardar Animal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

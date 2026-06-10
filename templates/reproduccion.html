@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Reproducción{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-diagram-2 me-2"></i>Control Reproductivo</h4>
+  <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevoServicio">
+    <i class="bi bi-plus-lg me-1"></i>Registrar Servicio
+  </button>
+</div>
+
+<!-- Gestantes -->
+<h6 class="fw-bold text-success mb-2">
+  <i class="bi bi-calendar-heart me-1"></i>Vacas en Gestación ({{ gestantes|length }})
+</h6>
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-0">
+    {% if gestantes %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Arete</th><th>Nombre</th><th>F. Servicio</th><th>Tipo</th>
+            <th>Toro</th><th>Parto Esperado</th><th>Días Restantes</th><th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for r in gestantes %}
+          <tr>
+            <td><code>{{ r['arete'] }}</code></td>
+            <td>{{ r['nombre'] or '—' }}</td>
+            <td>{{ r['fecha_servicio'] }}</td>
+            <td>{{ r['tipo_servicio']|replace('_',' ')|title }}</td>
+            <td>{{ r['toro_arete'] or '—' }}</td>
+            <td>
+              <span class="badge bg-primary">{{ r['fecha_parto_esperado'] or '—' }}</span>
+            </td>
+            <td>
+              {% if r['dias_restantes'] is not none %}
+                {% if r['dias_restantes'] < 0 %}
+                  <span class="badge bg-danger">Vencido {{ r['dias_restantes']|abs }} días</span>
+                {% elif r['dias_restantes'] <= 14 %}
+                  <span class="badge bg-danger">{{ r['dias_restantes'] }} días</span>
+                {% elif r['dias_restantes'] <= 30 %}
+                  <span class="badge bg-warning text-dark">{{ r['dias_restantes'] }} días</span>
+                {% else %}
+                  <span class="badge bg-success">{{ r['dias_restantes'] }} días</span>
+                {% endif %}
+              {% else %}
+                <span class="badge bg-secondary">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-success"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalParto{{ r['id'] }}">
+                <i class="bi bi-plus-circle me-1"></i>Registrar Parto
+              </button>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">
+      <i class="bi bi-check-circle fs-3 d-block mb-1"></i>No hay vacas en gestación registradas.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Historial -->
+<h6 class="fw-bold mb-2"><i class="bi bi-clock-history me-1"></i>Historial de Partos</h6>
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if historial %}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead>
+          <tr><th>Arete</th><th>Nombre</th><th>F. Servicio</th><th>Tipo</th><th>Parto Real</th><th>Crías</th><th>Sexo Cría</th><th>Peso Nacimiento</th></tr>
+        </thead>
+        <tbody>
+        {% for r in historial %}
+          <tr>
+            <td><code>{{ r['arete'] }}</code></td>
+            <td>{{ r['nombre'] or '—' }}</td>
+            <td>{{ r['fecha_servicio'] }}</td>
+            <td>{{ r['tipo_servicio']|replace('_',' ')|title }}</td>
+            <td>{{ r['fecha_parto_real'] or '—' }}</td>
+            <td><span class="badge bg-success">{{ r['num_crias'] }}</span></td>
+            <td>{{ r['sexo_cria'] or '—' }}</td>
+            <td>{{ r['peso_nacimiento']|string + ' kg' if r['peso_nacimiento'] else '—' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-3">Sin historial de partos.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal Nuevo Servicio -->
+<div class="modal fade" id="modalNuevoServicio" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Registrar Servicio</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('nuevo_reproduccion') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Vaca *</label>
+              <select name="vaca_id" class="form-select" required>
+                <option value="">Seleccionar vaca...</option>
+                {% for v in vacas %}
+                  <option value="{{ v['id'] }}">{{ v['arete'] }}{% if v['nombre'] %} — {{ v['nombre'] }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fecha de Servicio *</label>
+              <input type="date" name="fecha_servicio" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tipo de Servicio</label>
+              <select name="tipo_servicio" class="form-select">
+                <option value="monta_natural">Monta Natural</option>
+                <option value="inseminacion_artificial">Inseminación Artificial</option>
+                <option value="transferencia_embrion">Transferencia de Embrión</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Arete del Toro</label>
+              <select name="toro_arete" class="form-select">
+                <option value="">Sin registro / IA</option>
+                {% for t in toros %}
+                  <option value="{{ t['arete'] }}">{{ t['arete'] }}{% if t['nombre'] %} — {{ t['nombre'] }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Observaciones</label>
+              <textarea name="observaciones" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="alert alert-info mt-3 mb-0 small">
+            <i class="bi bi-info-circle me-1"></i>
+            La fecha de parto esperado se calculará automáticamente (280 días).
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modales de Parto por registro -->
+{% for r in gestantes %}
+<div class="modal fade" id="modalParto{{ r['id'] }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Registrar Parto — <code class="text-white">{{ r['arete'] }}</code></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('registrar_parto', rep_id=r['id']) }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Fecha Real de Parto *</label>
+              <input type="date" name="fecha_parto_real" class="form-control" required value="{{ hoy }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Número de Crías</label>
+              <input type="number" name="num_crias" class="form-control" value="1" min="0" max="5">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Sexo de Cría</label>
+              <select name="sexo_cria" class="form-select">
+                <option value="">—</option>
+                <option value="hembra">Hembra</option>
+                <option value="macho">Macho</option>
+                <option value="mixto">Mixto</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Peso al Nacimiento (kg)</label>
+              <input type="number" step="0.1" name="peso_nacimiento" class="form-control" placeholder="Ej: 35">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Observaciones</label>
+              <textarea name="observaciones" class="form-control" rows="2" placeholder="Dificultades, estado de la cría, etc."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar Parto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

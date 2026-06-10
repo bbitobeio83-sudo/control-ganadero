@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block title %}Producción{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-droplet me-2"></i>Producción de Leche</h4>
+  <div class="d-flex gap-2">
+    <div class="btn-group">
+      <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-download me-1"></i>Exportar
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><h6 class="dropdown-header">Día seleccionado ({{ fecha }})</h6></li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_produccion', fmt='pdf', fecha=fecha) }}">
+            <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF — Día
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_produccion', fmt='xlsx', fecha=fecha) }}">
+            <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel — Día + 30 días
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li><h6 class="dropdown-header">Últimos 30 días</h6></li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_produccion_mensual_pdf') }}">
+            <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF — Mensual
+          </a>
+        </li>
+      </ul>
+    </div>
+    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+      <i class="bi bi-plus-lg me-1"></i>Registrar Ordeña
+    </button>
+  </div>
+</div>
+
+<!-- Selector de fecha + KPI -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <label class="form-label fw-semibold">Ver registros del día:</label>
+        <form method="get">
+          <div class="input-group">
+            <input type="date" name="fecha" class="form-control" value="{{ fecha }}">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card kpi-purple h-100">
+      <i class="bi bi-droplet-fill kpi-icon"></i>
+      <div>
+        <div class="kpi-value">{{ "%.1f"|format(total_dia) }} L</div>
+        <div class="kpi-label">Total del {{ fecha }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card kpi-teal h-100">
+      <i class="bi bi-people kpi-icon"></i>
+      <div>
+        <div class="kpi-value">{{ registros_dia|length }}</div>
+        <div class="kpi-label">Vacas ordeñadas</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Registros del día -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0">
+    <h6 class="mb-0">Registros del día: <strong>{{ fecha }}</strong></h6>
+  </div>
+  <div class="card-body p-0">
+    {% if registros_dia %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>Arete</th><th>Nombre</th><th>Mañana (L)</th><th>Tarde (L)</th><th>Total (L)</th><th>Obs.</th></tr></thead>
+        <tbody>
+        {% for r in registros_dia %}
+          <tr>
+            <td><code>{{ r['arete'] }}</code></td>
+            <td>{{ r['nombre'] or '—' }}</td>
+            <td>{{ r['manana'] }}</td>
+            <td>{{ r['tarde'] }}</td>
+            <td><strong>{{ r['total'] }}</strong></td>
+            <td>{{ r['observaciones'] or '—' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">No hay registros para esta fecha.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Gráfica 30 días + Top vacas -->
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Producción últimos 30 días</h6>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:240px">
+          <canvas id="chartProduccion"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-trophy me-2"></i>Top 5 Productoras (mes)</h6>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>#</th><th>Arete</th><th>Nombre</th><th>Litros</th></tr></thead>
+          <tbody>
+          {% for v in top_vacas %}
+            <tr>
+              <td><span class="badge bg-warning text-dark">{{ loop.index }}</span></td>
+              <td><code>{{ v['arete'] }}</code></td>
+              <td>{{ v['nombre'] or '—' }}</td>
+              <td><strong>{{ "%.1f"|format(v['total_litros']) }}</strong></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="text-center text-muted">Sin datos</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nuevo registro -->
+<div class="modal fade" id="modalNuevo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-droplet me-2"></i>Registrar Producción de Leche</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('nuevo_produccion') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Vaca *</label>
+              <select name="animal_id" class="form-select" required>
+                <option value="">Seleccionar...</option>
+                {% for v in vacas %}
+                  <option value="{{ v['id'] }}">{{ v['arete'] }}{% if v['nombre'] %} — {{ v['nombre'] }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fecha *</label>
+              <input type="date" name="fecha" class="form-control" required value="{{ fecha }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Peso actual (kg)</label>
+              <input type="number" step="0.1" name="peso" class="form-control" placeholder="Opcional">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Ordeña Mañana (L)</label>
+              <input type="number" step="0.1" name="manana" class="form-control" value="0" min="0">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Ordeña Tarde (L)</label>
+              <input type="number" step="0.1" name="tarde" class="form-control" value="0" min="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Observaciones</label>
+              <input type="text" name="observaciones" class="form-control" placeholder="Mamitis, baja producción, etc.">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const prodFechas  = {{ produccion_mensual | map(attribute='fecha') | list | tojson }};
+const prodLitros  = {{ produccion_mensual | map(attribute='litros') | list | tojson }};
+const prodVacas   = {{ produccion_mensual | map(attribute='vacas') | list | tojson }};
+
+new Chart(document.getElementById('chartProduccion'), {
+  type: 'line',
+  data: {
+    labels: prodFechas,
+    datasets: [
+      {
+        label: 'Litros totales',
+        data: prodLitros,
+        borderColor: '#1565c0',
+        backgroundColor: 'rgba(21,101,192,.1)',
+        fill: true, tension: .4, yAxisID: 'yL'
+      },
+      {
+        label: 'Vacas ordeñadas',
+        data: prodVacas,
+        borderColor: '#43a047',
+        backgroundColor: 'transparent',
+        borderDash: [5,5], tension: .4, yAxisID: 'yV'
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      yL: { position: 'left',  title: { display: true, text: 'Litros' } },
+      yV: { position: 'right', title: { display: true, text: 'Vacas' }, grid: { drawOnChartArea: false } }
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}Sanidad{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-heart-pulse me-2"></i>Registro Sanitario</h4>
+  <div class="d-flex gap-2">
+    <div class="btn-group">
+      <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-download me-1"></i>Exportar
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_salud', fmt='pdf') }}">
+            <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_salud', fmt='xlsx') }}">
+            <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (.xlsx)
+          </a>
+        </li>
+      </ul>
+    </div>
+    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoSalud">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo Registro
+    </button>
+  </div>
+</div>
+
+<!-- Próximas citas -->
+{% if proximas %}
+<div class="alert alert-warning alert-upcoming mb-3">
+  <div class="fw-bold mb-1"><i class="bi bi-bell me-1"></i>Próximas citas (30 días)</div>
+  <div class="row row-cols-1 row-cols-md-3 g-2">
+    {% for p in proximas %}
+    <div class="col">
+      <div class="d-flex align-items-center gap-2">
+        <code>{{ p['arete'] }}</code>
+        <span class="badge bg-warning text-dark">{{ p['proxima_cita'] }}</span>
+        <small>{{ p['tipo'] }} — {{ p['descripcion'] or '' }}</small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-5">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Buscar por arete, nombre o descripción..." value="{{ buscar }}">
+      </div>
+      <div class="col-sm-4">
+        <select name="tipo" class="form-select form-select-sm">
+          <option value="">Todos los tipos</option>
+          <option value="vacuna" {% if filtro_tipo=='vacuna' %}selected{% endif %}>Vacuna</option>
+          <option value="desparasitacion" {% if filtro_tipo=='desparasitacion' %}selected{% endif %}>Desparasitación</option>
+          <option value="tratamiento" {% if filtro_tipo=='tratamiento' %}selected{% endif %}>Tratamiento</option>
+          <option value="cirugia" {% if filtro_tipo=='cirugia' %}selected{% endif %}>Cirugía</option>
+          <option value="revision" {% if filtro_tipo=='revision' %}selected{% endif %}>Revisión</option>
+        </select>
+      </div>
+      <div class="col-sm-3">
+        <button type="submit" class="btn btn-sm btn-primary w-100">
+          <i class="bi bi-search me-1"></i>Filtrar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabla -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Arete</th>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Descripción</th>
+            <th>Medicamento</th>
+            <th>Dosis</th>
+            <th>Veterinario</th>
+            <th>Costo</th>
+            <th>Próxima cita</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in registros %}
+          <tr>
+            <td>{{ r['fecha'] }}</td>
+            <td><code>{{ r['arete'] }}</code></td>
+            <td>{{ r['nombre'] or '—' }}</td>
+            <td>
+              {% set color = {'vacuna':'success','desparasitacion':'info','tratamiento':'warning','cirugia':'danger','revision':'secondary'} %}
+              <span class="badge bg-{{ color.get(r['tipo'], 'secondary') }}">{{ r['tipo']|title }}</span>
+            </td>
+            <td>{{ r['descripcion'] or '—' }}</td>
+            <td>{{ r['medicamento'] or '—' }}</td>
+            <td>{{ r['dosis'] or '—' }}</td>
+            <td>{{ r['veterinario'] or '—' }}</td>
+            <td>${{ "%.2f"|format(r['costo']) }}</td>
+            <td>
+              {% if r['proxima_cita'] %}
+                <span class="badge bg-warning text-dark">{{ r['proxima_cita'] }}</span>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" class="text-center text-muted py-4">Sin registros sanitarios.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="px-3 py-2 text-muted small border-top">{{ registros|length }} registro(s)</div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Registro -->
+<div class="modal fade" id="modalNuevoSalud" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-heart-pulse me-2"></i>Nuevo Registro Sanitario</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('nuevo_salud') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Animal *</label>
+              <select name="animal_id" class="form-select" required>
+                <option value="">Seleccionar...</option>
+                {% for a in animales_lista %}
+                  <option value="{{ a['id'] }}">{{ a['arete'] }}{% if a['nombre'] %} — {{ a['nombre'] }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Fecha *</label>
+              <input type="date" name="fecha" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Tipo *</label>
+              <select name="tipo" class="form-select" required>
+                <option value="vacuna">Vacuna</option>
+                <option value="desparasitacion">Desparasitación</option>
+                <option value="tratamiento">Tratamiento</option>
+                <option value="cirugia">Cirugía</option>
+                <option value="revision">Revisión</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Descripción / Diagnóstico</label>
+              <input type="text" name="descripcion" class="form-control" placeholder="Ej: Vacuna aftosa, Desparasitación interna, etc.">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Medicamento / Vacuna</label>
+              <input type="text" name="medicamento" class="form-control" placeholder="Nombre del producto">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Dosis</label>
+              <input type="text" name="dosis" class="form-control" placeholder="Ej: 5 ml">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Vía Administración</label>
+              <select name="via_administracion" class="form-select">
+                <option value="">—</option>
+                <option>Subcutánea</option>
+                <option>Intramuscular</option>
+                <option>Intravenosa</option>
+                <option>Oral</option>
+                <option>Tópica</option>
+                <option>Intramamaria</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-semibold">Costo ($)</label>
+              <input type="number" step="0.01" name="costo" class="form-control" value="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Veterinario</label>
+              <input type="text" name="veterinario" class="form-control" placeholder="Nombre del veterinario">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Próxima Cita</label>
+              <input type="date" name="proxima_cita" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

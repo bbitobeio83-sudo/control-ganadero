@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% block title %}Finanzas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-cash-coin me-2"></i>Control Financiero</h4>
+  <div class="d-flex gap-2">
+    <div class="btn-group">
+      <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-download me-1"></i>Exportar ({{ filtro_mes }})
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_finanzas', fmt='pdf', mes=filtro_mes) }}">
+            <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('export_finanzas', fmt='xlsx', mes=filtro_mes) }}">
+            <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (.xlsx)
+          </a>
+        </li>
+      </ul>
+    </div>
+    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo Movimiento
+    </button>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <label class="form-label small">Mes</label>
+        <input type="month" name="mes" class="form-control form-control-sm" value="{{ filtro_mes }}">
+      </div>
+      <div class="col-sm-3">
+        <label class="form-label small">Tipo</label>
+        <select name="tipo" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          <option value="ingreso" {% if filtro_tipo=='ingreso' %}selected{% endif %}>Ingresos</option>
+          <option value="gasto" {% if filtro_tipo=='gasto' %}selected{% endif %}>Gastos</option>
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <button type="submit" class="btn btn-sm btn-primary w-100 mt-3">
+          <i class="bi bi-search me-1"></i>Filtrar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- KPI Resumen -->
+<div class="row g-3 mb-4">
+  {% set ingresos_total = 0 %}{% set gastos_total = 0 %}
+  {% for r in resumen %}
+    {% if r['tipo'] == 'ingreso' %}{% set ingresos_total = r['total'] %}{% endif %}
+    {% if r['tipo'] == 'gasto' %}{% set gastos_total = r['total'] %}{% endif %}
+  {% endfor %}
+  <div class="col-md-4">
+    <div class="kpi-card kpi-green">
+      <i class="bi bi-arrow-down-circle kpi-icon"></i>
+      <div>
+        <div class="kpi-value">${{ "%.0f"|format(ingresos_total) }}</div>
+        <div class="kpi-label">Ingresos del mes</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card kpi-red">
+      <i class="bi bi-arrow-up-circle kpi-icon"></i>
+      <div>
+        <div class="kpi-value">${{ "%.0f"|format(gastos_total) }}</div>
+        <div class="kpi-label">Gastos del mes</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card {% if ingresos_total - gastos_total >= 0 %}kpi-teal{% else %}kpi-orange{% endif %}">
+      <i class="bi bi-wallet2 kpi-icon"></i>
+      <div>
+        <div class="kpi-value">${{ "%.0f"|format(ingresos_total - gastos_total) }}</div>
+        <div class="kpi-label">Balance neto</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Por Categoría -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0"><h6 class="mb-0">Por Categoría</h6></div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Tipo</th><th>Categoría</th><th>Total</th></tr></thead>
+          <tbody>
+          {% for c in por_categoria %}
+            <tr>
+              <td>
+                <span class="badge {% if c['tipo']=='ingreso' %}bg-success{% else %}bg-danger{% endif %}">
+                  {{ c['tipo']|title }}
+                </span>
+              </td>
+              <td>{{ c['categoria'] }}</td>
+              <td>${{ "%.0f"|format(c['total']) }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="text-center text-muted">Sin datos</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Movimientos -->
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0"><h6 class="mb-0">Movimientos del mes</h6></div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:350px;overflow-y:auto">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Animal</th><th>Monto</th></tr></thead>
+            <tbody>
+            {% for r in registros %}
+              <tr>
+                <td>{{ r['fecha'] }}</td>
+                <td>
+                  <span class="badge {% if r['tipo']=='ingreso' %}bg-success{% else %}bg-danger{% endif %}">
+                    {{ r['tipo']|title }}
+                  </span>
+                </td>
+                <td>{{ r['categoria'] }}</td>
+                <td>{{ r['descripcion'] or '—' }}</td>
+                <td>{% if r['arete'] %}<code>{{ r['arete'] }}</code>{% else %}—{% endif %}</td>
+                <td class="{% if r['tipo']=='ingreso' %}text-success{% else %}text-danger{% endif %} fw-bold">
+                  ${{ "%.2f"|format(r['monto']) }}
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="text-center text-muted py-3">Sin movimientos.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Movimiento -->
+<div class="modal fade" id="modalNuevo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-cash-coin me-2"></i>Nuevo Movimiento Financiero</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('nuevo_finanza') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tipo *</label>
+              <select name="tipo" class="form-select" required id="tipoSelect">
+                <option value="ingreso">Ingreso</option>
+                <option value="gasto">Gasto</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fecha *</label>
+              <input type="date" name="fecha" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Categoría *</label>
+              <select name="categoria" class="form-select" required id="catSelect">
+                <option value="">Seleccionar...</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Descripción</label>
+              <input type="text" name="descripcion" class="form-control" placeholder="Detalle del movimiento">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Monto ($) *</label>
+              <input type="number" step="0.01" name="monto" class="form-control" required min="0.01">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Animal (opcional)</label>
+              <select name="animal_id" class="form-select">
+                <option value="">General / Sin animal</option>
+                {% for a in animales_lista %}
+                  <option value="{{ a['id'] }}">{{ a['arete'] }}{% if a['nombre'] %} — {{ a['nombre'] }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const categorias = {
+  ingreso: ['Venta de leche','Venta de ganado','Venta de crías','Venta de becerros','Subsidio','Otro ingreso'],
+  gasto: ['Alimentación','Medicamentos','Vacunas','Honorarios veterinario','Mano de obra',
+          'Mantenimiento','Combustible','Electricidad','Agua','Compra de animales','Arrendamiento','Otro gasto']
+};
+function actualizarCategorias() {
+  const tipo = document.getElementById('tipoSelect').value;
+  const sel = document.getElementById('catSelect');
+  sel.innerHTML = '<option value="">Seleccionar...</option>';
+  categorias[tipo].forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    sel.appendChild(o);
+  });
+}
+document.getElementById('tipoSelect').addEventListener('change', actualizarCategorias);
+actualizarCategorias();
+</script>
+{% endblock %}

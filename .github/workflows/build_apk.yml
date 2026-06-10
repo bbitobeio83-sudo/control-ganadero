@@ -1,0 +1,62 @@
+name: Compilar APK Control Ganadero
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Instalar dependencias del sistema
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y \
+          git zip unzip \
+          openjdk-17-jdk \
+          build-essential \
+          libssl-dev libffi-dev \
+          libltdl-dev libjpeg-dev \
+          autoconf automake libtool \
+          ccache \
+          libsqlite3-dev
+
+    - name: Cache buildozer
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.buildozer
+          ~/.gradle
+        key: buildozer-v1-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          buildozer-v1-
+
+    - name: Instalar buildozer y Cython
+      run: |
+        pip install --quiet \
+          git+https://github.com/kivy/buildozer.git \
+          python-for-android==2024.1.21 \
+          Cython==0.29.33
+
+    - name: Compilar APK (debug)
+      run: buildozer android debug
+
+    - name: Subir APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: control-ganadero-apk
+        path: bin/*.apk
+        if-no-files-found: error
+        retention-days: 30

@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>{{ cfg.get('nombre_hacienda', 'Mi Rancho') }}</h4>
+    <small class="text-muted">
+      {% if cfg.get('propietario') %}{{ cfg.get('propietario') }}{% endif %}
+      {% if cfg.get('propietario') and cfg.get('ubicacion') %} &mdash; {% endif %}
+      {% if cfg.get('ubicacion') %}{{ cfg.get('ubicacion') }}{% endif %}
+      {% if not cfg.get('propietario') and not cfg.get('ubicacion') %}Resumen del hato{% endif %}
+    </small>
+  </div>
+  <a href="{{ url_for('configuracion') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-gear me-1"></i>Configurar hacienda
+  </a>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card kpi-green">
+      <i class="bi bi-grid-3x3-gap kpi-icon"></i>
+      <div>
+        <div class="kpi-value">{{ stats.total_animales }}</div>
+        <div class="kpi-label">Total Hato</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card kpi-teal">
+      <i class="bi bi-gender-female kpi-icon"></i>
+      <div>
+        <div class="kpi-value">{{ stats.vacas }}</div>
+        <div class="kpi-label">Vacas</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card kpi-blue">
+      <i class="bi bi-gender-male kpi-icon"></i>
+      <div>
+        <div class="kpi-value">{{ stats.toros }}</div>
+        <div class="kpi-label">Toros</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card kpi-orange">
+      <i class="bi bi-star kpi-icon"></i>
+      <div>
+        <div class="kpi-value">{{ stats.terneros }}</div>
+        <div class="kpi-label">Terneros</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card kpi-purple">
+      <i class="bi bi-droplet kpi-icon"></i>
+      <div>
+        <div class="kpi-value">{{ "%.0f"|format(stats.leche_hoy) }} L</div>
+        <div class="kpi-label">Leche Hoy</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card kpi-cyan">
+      <i class="bi bi-diagram-2 kpi-icon"></i>
+      <div>
+        <div class="kpi-value">{{ stats.gestantes }}</div>
+        <div class="kpi-label">Gestantes</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráfica + Alertas -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-droplet me-2 text-primary"></i>Producción de Leche — Últimos 7 días</h6>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="chartLeche"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0">
+        <h6 class="mb-0"><i class="bi bi-pie-chart me-2 text-success"></i>Balance del Mes</h6>
+      </div>
+      <div class="card-body">
+        {% set ingresos = 0 %}{% set gastos = 0 %}
+        {% for b in balance %}
+          {% if b['tipo'] == 'ingreso' %}{% set ingresos = b['total'] %}{% endif %}
+          {% if b['tipo'] == 'gasto' %}{% set gastos = b['total'] %}{% endif %}
+        {% endfor %}
+        <div class="chart-container">
+          <canvas id="chartBalance"></canvas>
+        </div>
+        <div class="d-flex justify-content-around mt-2 text-center">
+          <div>
+            <div class="fw-bold text-success fs-5">${{ "%.0f"|format(ingresos) }}</div>
+            <small class="text-muted">Ingresos</small>
+          </div>
+          <div>
+            <div class="fw-bold text-danger fs-5">${{ "%.0f"|format(gastos) }}</div>
+            <small class="text-muted">Gastos</small>
+          </div>
+          <div>
+            <div class="fw-bold {% if ingresos-gastos >= 0 %}text-success{% else %}text-danger{% endif %} fs-5">
+              ${{ "%.0f"|format(ingresos - gastos) }}
+            </div>
+            <small class="text-muted">Balance</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Próximos partos + próximas vacunas -->
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0"><i class="bi bi-calendar-event me-2 text-warning"></i>Próximos Partos (30 días)</h6>
+        <a href="{{ url_for('reproduccion') }}" class="btn btn-sm btn-outline-secondary">Ver todo</a>
+      </div>
+      <div class="card-body p-0">
+        {% if proximos_partos %}
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>Arete</th><th>Nombre</th><th>Parto esperado</th><th>Días restantes</th></tr></thead>
+          <tbody>
+          {% for p in proximos_partos %}
+            <tr>
+              <td><code>{{ p['arete'] }}</code></td>
+              <td>{{ p['nombre'] or '—' }}</td>
+              <td>{{ p['fecha_parto_esperado'] }}</td>
+              <td>
+                {% set dias = ((p['fecha_parto_esperado']|string)|replace('-','') ) %}
+                <span class="badge bg-warning text-dark">
+                  {{ p['fecha_parto_esperado'] }}
+                </span>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4"><i class="bi bi-check-circle fs-3 d-block mb-1"></i>No hay partos en los próximos 30 días</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0"><i class="bi bi-heart-pulse me-2 text-danger"></i>Próximas Vacunas / Tratamientos</h6>
+        <a href="{{ url_for('salud') }}" class="btn btn-sm btn-outline-secondary">Ver todo</a>
+      </div>
+      <div class="card-body p-0">
+        {% if proximas_vacunas %}
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>Arete</th><th>Tipo</th><th>Fecha</th><th>Descripción</th></tr></thead>
+          <tbody>
+          {% for v in proximas_vacunas %}
+            <tr>
+              <td><code>{{ v['arete'] }}</code></td>
+              <td><span class="badge bg-info text-dark">{{ v['tipo'] }}</span></td>
+              <td>{{ v['proxima_cita'] }}</td>
+              <td class="text-truncate" style="max-width:150px">{{ v['descripcion'] or '—' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4"><i class="bi bi-check-circle fs-3 d-block mb-1"></i>No hay citas en los próximos 14 días</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Gráfica Leche
+const lecheData = {{ leche_semana | map(attribute='fecha') | list | tojson }};
+const lecheLitros = {{ leche_semana | map(attribute='litros') | list | tojson }};
+
+new Chart(document.getElementById('chartLeche'), {
+  type: 'bar',
+  data: {
+    labels: lecheData,
+    datasets: [{
+      label: 'Litros',
+      data: lecheLitros,
+      backgroundColor: 'rgba(46,125,50,.7)',
+      borderColor: '#2e7d32',
+      borderWidth: 1,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' L' } } }
+  }
+});
+
+// Gráfica Balance
+const balanceData = {{ balance | map(attribute='total') | list | tojson }};
+const balanceLabels = {{ balance | map(attribute='tipo') | list | tojson }};
+const balanceColors = balanceLabels.map(t => t === 'ingreso' ? '#4caf50' : '#f44336');
+
+new Chart(document.getElementById('chartBalance'), {
+  type: 'doughnut',
+  data: {
+    labels: balanceLabels.map(t => t.charAt(0).toUpperCase() + t.slice(1) + 's'),
+    datasets: [{ data: balanceData, backgroundColor: balanceColors, hoverOffset: 6 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12 } }
+    }
+  }
+});
+</script>
+{% endblock %}

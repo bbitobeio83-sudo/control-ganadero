@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Control de Pesos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-graph-up me-2"></i>Control de Pesos</h4>
+  <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+    <i class="bi bi-plus-lg me-1"></i>Registrar Pesaje
+  </button>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr><th>Fecha</th><th>Arete</th><th>Nombre</th><th>Sexo</th><th>Peso (kg)</th><th>C. Corporal</th><th>Observaciones</th></tr>
+        </thead>
+        <tbody>
+        {% for r in registros %}
+          <tr>
+            <td>{{ r['fecha'] }}</td>
+            <td><code>{{ r['arete'] }}</code></td>
+            <td>{{ r['nombre'] or '—' }}</td>
+            <td>{{ r['sexo']|title }}</td>
+            <td><strong>{{ r['peso'] }} kg</strong></td>
+            <td>
+              {% if r['condicion_corporal'] %}
+                <span class="badge {% if r['condicion_corporal'] >= 4 %}bg-success{% elif r['condicion_corporal'] == 3 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                  {{ r['condicion_corporal'] }}/5
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ r['observaciones'] or '—' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="text-center text-muted py-4">Sin registros de peso.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="px-3 py-2 text-muted small border-top">{{ registros|length }} registro(s)</div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalNuevo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-graph-up me-2"></i>Registrar Pesaje</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('nuevo_peso') }}">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Animal *</label>
+              <select name="animal_id" class="form-select" required>
+                <option value="">Seleccionar...</option>
+                {% for a in animales_lista %}
+                  <option value="{{ a['id'] }}">{{ a['arete'] }}{% if a['nombre'] %} — {{ a['nombre'] }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fecha *</label>
+              <input type="date" name="fecha" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Peso (kg) *</label>
+              <input type="number" step="0.1" name="peso" class="form-control" required placeholder="Ej: 420.5">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Condición Corporal (1-5)</label>
+              <select name="condicion_corporal" class="form-select">
+                <option value="">— No registrar —</option>
+                <option value="1">1 — Muy pobre</option>
+                <option value="2">2 — Pobre</option>
+                <option value="3">3 — Moderada</option>
+                <option value="4">4 — Buena</option>
+                <option value="5">5 — Excelente</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Observaciones</label>
+              <input type="text" name="observaciones" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
