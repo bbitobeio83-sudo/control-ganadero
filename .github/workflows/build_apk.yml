@@ -15,6 +15,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Configurar Java 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
     - name: Configurar Python
       uses: actions/setup-python@v5
       with:
@@ -25,7 +31,6 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install -y \
           git zip unzip wget \
-          openjdk-17-jdk \
           build-essential \
           libssl-dev libffi-dev \
           libltdl-dev libjpeg-dev \
@@ -39,9 +44,9 @@ jobs:
         path: |
           ~/.buildozer
           ~/.gradle
-        key: buildozer-v4-${{ hashFiles('buildozer.spec') }}
+        key: buildozer-v5-${{ hashFiles('buildozer.spec') }}
         restore-keys: |
-          buildozer-v4-
+          buildozer-v5-
 
     - name: Instalar buildozer y Cython
       run: |
