@@ -15,12 +15,59 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Compilar APK con Docker
+    - name: Configurar Java 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Instalar dependencias del sistema
       run: |
-        docker run --rm \
-          -v ${{ github.workspace }}:/home/user/hostcwd \
-          kivy/buildozer:latest \
-          android debug
+        sudo apt-get update -qq
+        sudo apt-get install -y \
+          git zip unzip \
+          build-essential \
+          libssl-dev libffi-dev \
+          libltdl-dev libjpeg-dev \
+          autoconf automake libtool \
+          ccache libsqlite3-dev
+
+    - name: Instalar buildozer y Cython
+      run: |
+        pip install --quiet \
+          git+https://github.com/kivy/buildozer.git \
+          python-for-android==2024.1.21 \
+          Cython==0.29.33
+
+    - name: Usar SDK pre-instalado de GitHub (licencias ya aceptadas)
+      run: |
+        SDK=/usr/local/lib/android/sdk
+
+        # Instalar los componentes que necesita buildozer
+        yes | ${SDK}/cmdline-tools/latest/bin/sdkmanager \
+          "build-tools;33.0.2" \
+          "platforms;android-33" \
+          "ndk;25.2.9519653"
+
+        # Crear symlinks en la ruta que buildozer espera
+        mkdir -p $HOME/.buildozer/android/platform
+        ln -sf ${SDK} $HOME/.buildozer/android/platform/android-sdk
+        ln -sf ${SDK}/ndk/25.2.9519653 $HOME/.buildozer/android/platform/android-ndk-r25b
+
+    - name: Cache buildozer (paquetes Python compilados)
+      uses: actions/cache@v4
+      with:
+        path: ~/.buildozer/android/packages
+        key: p4a-v1-${{ hashFiles('buildozer.spec') }}
+        restore-keys: p4a-v1-
+
+    - name: Compilar APK (debug)
+      run: buildozer android debug
 
     - name: Subir APK
       uses: actions/upload-artifact@v4
