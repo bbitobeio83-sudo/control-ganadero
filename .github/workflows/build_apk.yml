@@ -24,7 +24,7 @@ jobs:
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y \
-          git zip unzip \
+          git zip unzip wget \
           openjdk-17-jdk \
           build-essential \
           libssl-dev libffi-dev \
@@ -39,9 +39,9 @@ jobs:
         path: |
           ~/.buildozer
           ~/.gradle
-        key: buildozer-v1-${{ hashFiles('buildozer.spec') }}
+        key: buildozer-v4-${{ hashFiles('buildozer.spec') }}
         restore-keys: |
-          buildozer-v1-
+          buildozer-v4-
 
     - name: Instalar buildozer y Cython
       run: |
@@ -50,16 +50,29 @@ jobs:
           python-for-android==2024.1.21 \
           Cython==0.29.33
 
-    - name: Aceptar licencias Android SDK
+    - name: Configurar Android SDK (cmdline-tools)
       run: |
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
-        printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd975f751698a77b662f1254ddbeed3901e976f5a\n8933bad161af4178b1185d1a37fbf41ea5269c55\n" \
-          > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        printf "84831b9409646a918e30573bab4c9c91346d8abd\n" \
-          > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+        SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
+        mkdir -p $SDK_DIR/cmdline-tools
+
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+             -O /tmp/cmdline-tools.zip
+        unzip -q /tmp/cmdline-tools.zip -d $SDK_DIR/cmdline-tools
+        mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
+
+        # Symlink a la ruta que buildozer espera
+        mkdir -p $SDK_DIR/tools/bin
+        ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+
+        # Aceptar licencias e instalar componentes
+        yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --licenses
+        $SDK_DIR/cmdline-tools/latest/bin/sdkmanager \
+          "build-tools;33.0.2" \
+          "platforms;android-33" \
+          "platform-tools"
 
     - name: Compilar APK (debug)
-      run: yes | buildozer android debug
+      run: buildozer android debug
 
     - name: Subir APK
       uses: actions/upload-artifact@v4
