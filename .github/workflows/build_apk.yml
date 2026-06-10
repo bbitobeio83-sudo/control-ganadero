@@ -15,69 +15,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Configurar Java 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - name: Configurar Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Instalar dependencias del sistema
+    - name: Compilar APK con Docker
       run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y \
-          git zip unzip wget \
-          build-essential \
-          libssl-dev libffi-dev \
-          libltdl-dev libjpeg-dev \
-          autoconf automake libtool \
-          ccache \
-          libsqlite3-dev
-
-    - name: Cache buildozer
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.buildozer
-          ~/.gradle
-        key: buildozer-v5-${{ hashFiles('buildozer.spec') }}
-        restore-keys: |
-          buildozer-v5-
-
-    - name: Instalar buildozer y Cython
-      run: |
-        pip install --quiet \
-          git+https://github.com/kivy/buildozer.git \
-          python-for-android==2024.1.21 \
-          Cython==0.29.33
-
-    - name: Configurar Android SDK (cmdline-tools)
-      run: |
-        SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
-        mkdir -p $SDK_DIR/cmdline-tools
-
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
-             -O /tmp/cmdline-tools.zip
-        unzip -q /tmp/cmdline-tools.zip -d $SDK_DIR/cmdline-tools
-        mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
-
-        # Symlink a la ruta que buildozer espera
-        mkdir -p $SDK_DIR/tools/bin
-        ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-
-        # Aceptar licencias e instalar componentes
-        yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --licenses
-        $SDK_DIR/cmdline-tools/latest/bin/sdkmanager \
-          "build-tools;33.0.2" \
-          "platforms;android-33" \
-          "platform-tools"
-
-    - name: Compilar APK (debug)
-      run: buildozer android debug
+        docker run --rm \
+          -v ${{ github.workspace }}:/home/user/hostcwd \
+          kivy/buildozer:latest \
+          android debug
 
     - name: Subir APK
       uses: actions/upload-artifact@v4
